@@ -1,0 +1,36 @@
+# 至少需要一个 Hyperf 节点，多个配置多行
+upstream hyperf {
+# Hyperf HTTP Server 的 IP 及 端口
+	server 127.0.0.1:9501;
+}
+
+server {
+# 端口
+	listen 80;
+# 域名
+	server_name demo.hyperfcms.com;
+# 日志
+	access_log /var/logs/nginx/demo.hyperfcms.com_nginx_access.log combined;
+	error_log /var/logs/nginx/demo.hyperfcms.com_nginx_error.log debug;
+
+# 支持自定义下划线参数通过header传输
+# underscores_in_headers on;
+
+# PHP 代码
+	location ~ ^/(admin_api|public) {
+# 将客户端的 Host 和 IP 信息一并转发到对应节点
+		proxy_set_header Host $http_host;
+		proxy_set_header X-Real-IP $remote_addr;
+		proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+# 自定义header头，这里其实并没有用
+# 因为发现下划线的自定义变量无法通过header传递，postman的却可以这里能接收到。是在没找到为什么。谁有兴趣可以研究研究。
+# 目前前端代码中的header变量是通过HYPERF-SESSION-ID传递的。
+		proxy_set_header HYPERF_SESSION_ID $http_hyperf_session_id;
+# 转发Cookie，设置 SameSite，注意：heyprf文档有设置这里，secure是跟https相关的，如果域名没有https发布就不要设置这里，会导致cookie设置不成功
+#proxy_cookie_path / "/; secure; HttpOnly; SameSite=strict";
+#proxy_cookie_path / "/; SameSite=strict";
+
+# 执行代理访问真实服务器
+		proxy_pass http://hyperf;
+	}
+}
